@@ -1,0 +1,74 @@
+name: timeseries
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg12
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: timescaledb
+      POSTGRES_PASSWORD: password
+    volumes:
+      - /data/timescaledb:/var/lib/postgresql/data
+    networks:
+      my_network:
+        ipv4_address: 240.0.0.4
+  prometheus_postgresql_adapter:
+    image: prometheuscommunity/postgres-exporter:latest
+    restart: always
+    depends_on:
+      - timescaledb
+    environment:
+      DATA_SOURCE_URI: 240.0.0.4:5432/postgres?sslmode=disable
+      DATA_SOURCE_USER: timescaledb
+      DATA_SOURCE_PASS: password
+    ports:
+      - 9187:9187/tcp
+    networks:
+      my_network:
+        ipv4_address: 240.0.0.3
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      my_network:
+        ipv4_address: 240.0.0.2
+  init_prometheus:
+    image: prom/prometheus
+    user: root
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        chown -R 65534:65534 /etc/prometheus
+    volumes:
+      - /data/prometheus:/prometheus
+  prometheus:
+    user: root
+    image: prom/prometheus
+    container_name: prometheus
+    depends_on:
+      - init_prometheus
+    networks:
+      my_network:
+        ipv4_address: 240.0.0.5
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.config.yaml:/etc/prometheus/prometheus.yml
+
+networks:
+  my_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 240.0.0.0/24
+          gateway: 240.0.0.1
+
