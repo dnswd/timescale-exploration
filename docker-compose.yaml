@@ -13,6 +13,7 @@ services:
     networks:
       my_network:
         ipv4_address: 240.0.0.4
+
   prometheus_postgresql_adapter:
     image: prometheuscommunity/postgres-exporter:latest
     restart: always
@@ -27,13 +28,7 @@ services:
     networks:
       my_network:
         ipv4_address: 240.0.0.3
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    networks:
-      my_network:
-        ipv4_address: 240.0.0.2
+
   init_prometheus:
     image: prom/prometheus
     user: root
@@ -44,6 +39,7 @@ services:
         chown -R 65534:65534 /etc/prometheus
     volumes:
       - /data/prometheus:/prometheus
+
   prometheus:
     user: root
     image: prom/prometheus
@@ -63,6 +59,16 @@ services:
     restart: unless-stopped
     volumes:
       - ./observability/prometheus.config.yaml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      my_network:
+        ipv4_address: 240.0.0.2
 
 networks:
   my_network:
